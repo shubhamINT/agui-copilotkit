@@ -1,53 +1,63 @@
 "use client";
 
 import React from "react";
+import { motion } from "framer-motion";
 
 interface CompanyInfo {
+    id: string;
     title: string;
     description: string;
 }
 
 interface CompanyInfoCardProps {
-    info: CompanyInfo[];
+    item: CompanyInfo;
     themeColor?: string;
+    constraintsRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-export const CompanyInfoCard = ({ info, themeColor = "#2563EB" }: CompanyInfoCardProps) => {
+export const CompanyCard = ({ item, themeColor = "#2563EB", constraintsRef }: CompanyInfoCardProps) => {
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl p-4">
-            {info.map((item, index) => (
+        <motion.div
+            drag
+            dragConstraints={constraintsRef}
+            dragElastic={0.1}
+            whileDrag={{ scale: 1.05, zIndex: 50 }}
+            initial={{ opacity: 0, scale: 0.8, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="absolute bg-white rounded-3xl p-8 shadow-xl cursor-grab active:cursor-grabbing overflow-hidden border border-gray-100 w-80"
+            style={{
+                left: "50%",
+                top: "50%",
+                marginLeft: "-160px",
+                marginTop: "-100px",
+            }}
+        >
+            {/* Decorative Background Blob */}
+            <div
+                className="absolute -right-8 -top-8 w-32 h-32 rounded-full opacity-10"
+                style={{ backgroundColor: themeColor }}
+            />
+
+            <div className="relative z-10">
                 <div
-                    key={index}
-                    className="group relative bg-white rounded-3xl p-8 shadow-xl transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl overflow-hidden border border-gray-100"
-                >
-                    {/* Decorative Background Blob */}
-                    <div
-                        className="absolute -right-8 -top-8 w-32 h-32 rounded-full opacity-10 transition-transform duration-700 group-hover:scale-150"
-                        style={{ backgroundColor: themeColor }}
-                    />
+                    className="w-12 h-1 mb-6 rounded-full"
+                    style={{ backgroundColor: themeColor }}
+                />
 
-                    <div className="relative z-10">
-                        <div
-                            className="w-12 h-1 gap-1 mb-6 rounded-full"
-                            style={{ backgroundColor: themeColor }}
-                        />
+                <h3 className="text-xl font-bold text-gray-900 mb-4 tracking-tight">
+                    {item.title}
+                </h3>
 
-                        <h3 className="text-2xl font-bold text-gray-900 mb-4 tracking-tight">
-                            {item.title}
-                        </h3>
+                <p className="text-gray-600 leading-relaxed text-sm">
+                    {item.description}
+                </p>
+            </div>
 
-                        <p className="text-gray-600 leading-relaxed text-lg">
-                            {item.description}
-                        </p>
-                    </div>
-
-                    {/* Bottom highlight bar */}
-                    <div
-                        className="absolute bottom-0 left-0 w-full h-1 scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"
-                        style={{ backgroundColor: themeColor }}
-                    />
-                </div>
-            ))}
-        </div>
+            {/* Bottom highlight bar */}
+            <div
+                className="absolute bottom-0 left-0 w-full h-1"
+                style={{ backgroundColor: themeColor }}
+            />
+        </motion.div>
     );
 };

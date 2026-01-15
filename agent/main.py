@@ -18,12 +18,14 @@ def get_company_info(info_types: List[Literal["services", "location"]]):
     
     if "services" in info_types:
         results.append({
+            "id": "services",
             "title": "Our Services",
             "description": "We specialize in AI Consulting, Custom Software Development, and Cloud Architecture, helping businesses transform through modern technology."
         })
     
     if "location" in info_types:
         results.append({
+            "id": "location",
             "title": "Our Offices",
             "description": "Headquartered in San Francisco, CA, with strategic global hubs in London and Bangalore to serve our international clients."
         })

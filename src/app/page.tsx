@@ -3,16 +3,17 @@
 import { ProverbsCard } from "@/components/proverbs";
 import { WeatherCard } from "@/components/weather";
 import { MoonCard } from "@/components/moon";
-import { CompanyInfoCard } from "@/components/company-info";
+import { CompanyCard } from "@/components/company-info";
 import { useCoAgent, useFrontendTool, useHumanInTheLoop } from "@copilotkit/react-core";
 import { CopilotPopup } from "@copilotkit/react-ui"; // 1. Import CopilotPopup
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 export default function CopilotKitPage() {
   // --- STATE MANAGEMENT ---
   const [themeColor, setThemeColor] = useState("#2563EB");
   const [weatherData, setWeatherData] = useState<string | null>(null);
   const [activeComponent, setActiveComponent] = useState<"proverbs" | "weather" | "moon" | "company" | null>(null);
+  const constraintsRef = useRef<HTMLDivElement>(null);
   const [companyInfo, setCompanyInfo] = useState<any[]>([]);
   const [moonStatus, setMoonStatus] = useState<any>(null);
   const [moonRespond, setMoonRespond] = useState<any>(null);
@@ -93,7 +94,7 @@ export default function CopilotKitPage() {
         This occupies the entire screen behind the popup
         ----------------------------------------------------
       */}
-      <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto">
+      <div ref={constraintsRef} className="flex-1 flex items-center justify-center p-8 overflow-hidden relative">
 
         {/* Empty State */}
         {!activeComponent && (
@@ -131,11 +132,14 @@ export default function CopilotKitPage() {
           </div>
         )}
 
-        {activeComponent === "company" && (
-          <div className="w-full max-w-5xl animate-in fade-in zoom-in duration-500">
-            <CompanyInfoCard info={companyInfo} themeColor={themeColor} />
-          </div>
-        )}
+        {activeComponent === "company" && companyInfo.map((item) => (
+          <CompanyCard
+            key={item.id}
+            item={item}
+            themeColor={themeColor}
+            constraintsRef={constraintsRef as any}
+          />
+        ))}
 
       </div>
 
