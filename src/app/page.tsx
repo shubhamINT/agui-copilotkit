@@ -4,6 +4,7 @@ import { ProverbsCard } from "@/components/proverbs";
 import { WeatherCard } from "@/components/weather";
 import { MoonCard } from "@/components/moon";
 import { CompanyCard } from "@/components/company-info";
+import { UniversalCard, UniversalCardData } from "@/components/universal-card";
 import { WidgetWrapper } from "@/components/widget-wrapper";
 import { useCoAgent, useFrontendTool, useHumanInTheLoop } from "@copilotkit/react-core";
 import { CopilotPopup } from "@copilotkit/react-ui";
@@ -11,7 +12,7 @@ import { useState, useRef } from "react";
 
 interface Widget {
   id: string;
-  type: "proverbs" | "weather" | "moon" | "company";
+  type: "proverbs" | "weather" | "moon" | "company" | "dynamic_card";
   title: string;
   data: any;
   zIndex: number;
@@ -99,6 +100,20 @@ export default function CopilotKitPage() {
     },
   });
 
+  // Universal / Dynamic Card Tool
+  useFrontendTool({
+    name: "show_dynamic_card",
+    parameters: [
+      { name: "title", type: "string", required: true },
+      { name: "content", type: "object[]", required: true },
+      { name: "design", type: "object", required: false }
+    ],
+    handler({ title, content, design }) {
+      addWidget("dynamic_card", title, { title, content, design });
+    }
+  });
+
+
   // Proverbs View Switcher
   useFrontendTool({
     name: "show_proverbs_view",
@@ -146,7 +161,6 @@ export default function CopilotKitPage() {
       <div ref={constraintsRef} className="flex-1 flex items-center justify-center p-8 overflow-hidden relative">
 
         {/* Empty State */}
-        {/* Empty State */}
         {widgets.length === 0 && (
           <div className="text-center max-w-lg pointer-events-none select-none opacity-50">
             <h1 className="text-5xl font-extrabold mb-6 text-gray-800 tracking-tight">
@@ -159,24 +173,31 @@ export default function CopilotKitPage() {
         )}
 
         {/* Dynamic Widgets */}
-        {widgets.map((widget) => (
-          <WidgetWrapper
-            key={widget.id}
-            id={widget.id}
-            title={widget.title}
-            zIndex={widget.zIndex}
-            initialPosition={widget.position}
-            onClose={closeWidget}
-            onFocus={bringToFront}
-            dragConstraintsRef={constraintsRef}
-            themeColor={themeColor}
-          >
-            {widget.type === "proverbs" && <ProverbsCard state={state} setState={setState} />}
-            {widget.type === "weather" && <WeatherCard location={widget.data} themeColor={themeColor} />}
-            {widget.type === "moon" && <MoonCard themeColor={themeColor} status={moonStatus} respond={moonRespond} />}
-            {widget.type === "company" && <CompanyCard item={widget.data} themeColor={themeColor} />}
-          </WidgetWrapper>
-        ))}
+        {widgets.map((widget) => {
+          const isUniversal = widget.type === "dynamic_card";
+          const theme = isUniversal ? (widget.data as UniversalCardData).design?.themeColor : themeColor;
+
+          return (
+            <WidgetWrapper
+              key={widget.id}
+              id={widget.id}
+              title={widget.title}
+              zIndex={widget.zIndex}
+              initialPosition={widget.position}
+              onClose={closeWidget}
+              onFocus={bringToFront}
+              dragConstraintsRef={constraintsRef}
+              themeColor={theme || themeColor}
+              resizable={isUniversal} // Enable resizing for Universal Cards
+            >
+              {widget.type === "proverbs" && <ProverbsCard state={state} setState={setState} />}
+              {widget.type === "weather" && <WeatherCard location={widget.data} themeColor={themeColor} />}
+              {widget.type === "moon" && <MoonCard themeColor={themeColor} status={moonStatus} respond={moonRespond} />}
+              {widget.type === "company" && <CompanyCard item={widget.data} themeColor={themeColor} />}
+              {widget.type === "dynamic_card" && <UniversalCard data={widget.data} />}
+            </WidgetWrapper>
+          );
+        })}
 
       </div>
 
@@ -186,10 +207,10 @@ export default function CopilotKitPage() {
         ----------------------------------------------------
       */}
       <CopilotPopup
-        instructions="You are a helpful assistant. Call 'show_proverbs_view' for proverbs, 'get_weather' for weather, and 'show_company_info' to show company data cards."
+        instructions="You are a helpful assistant. use 'show_dynamic_card' to display information visually."
         labels={{
           title: "Assistant",
-          initial: "Hi! I can update the screen for you. Try asking for the weather.",
+          initial: "Hi! I can update the screen for you. Ask me anything.",
         }}
         defaultOpen={false} // Start closed (bubble mode)
         clickOutsideToClose={false} // Keep it open while interacting

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion, useDragControls } from "framer-motion";
 
 interface WidgetWrapperProps {
@@ -13,6 +13,7 @@ interface WidgetWrapperProps {
     themeColor?: string;
     children: React.ReactNode;
     dragConstraintsRef?: React.RefObject<HTMLDivElement | null>;
+    resizable?: boolean;
 }
 
 export const WidgetWrapper = ({
@@ -25,8 +26,41 @@ export const WidgetWrapper = ({
     themeColor = "#2563EB",
     children,
     dragConstraintsRef,
+    resizable = false,
 }: WidgetWrapperProps) => {
     const dragControls = useDragControls();
+    const [size, setSize] = useState({ width: 320, height: "auto" as number | "auto" });
+    const contentRef = useRef<HTMLDivElement>(null);
+
+    // Sync initial height if needed, or just let it be auto. 
+    // For resizing, we start with auto, but once resized, it becomes fixed.
+
+    const handleResize = (e: React.PointerEvent) => {
+        if (!contentRef.current) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startWidth = contentRef.current.offsetWidth;
+        const startHeight = contentRef.current.offsetHeight;
+
+        const onPointerMove = (moveEvent: PointerEvent) => {
+            const newWidth = Math.max(300, startWidth + (moveEvent.clientX - startX));
+            // Only constrain height if it was already set or we want to allow vertical resizing
+            const newHeight = Math.max(200, startHeight + (moveEvent.clientY - startY));
+
+            setSize({ width: newWidth, height: newHeight });
+        };
+
+        const onPointerUp = () => {
+            document.removeEventListener("pointermove", onPointerMove);
+            document.removeEventListener("pointerup", onPointerUp);
+        };
+
+        document.addEventListener("pointermove", onPointerMove);
+        document.addEventListener("pointerup", onPointerUp);
+    };
 
     return (
         <motion.div
@@ -41,16 +75,19 @@ export const WidgetWrapper = ({
             className="absolute flex flex-col bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-200"
             style={{
                 zIndex,
+                width: size.width,
+                height: size.height === "auto" ? "auto" : size.height,
                 minWidth: "320px",
                 maxWidth: "90vw",
                 boxShadow: "0 20px 50px -12px rgba(0, 0, 0, 0.25)",
             }}
             onPointerDown={() => onFocus(id)}
+            ref={contentRef}
         >
             {/* Header / Drag Handle */}
             <div
                 onPointerDown={(e) => dragControls.start(e)}
-                className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100 cursor-grab active:cursor-grabbing select-none"
+                className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100 cursor-grab active:cursor-grabbing select-none shrink-0"
             >
                 <div className="flex items-center gap-3">
                     <div
@@ -88,9 +125,34 @@ export const WidgetWrapper = ({
             </div>
 
             {/* Widget Content */}
-            <div className="p-0 relative bg-white/50 backdrop-blur-sm">
+            <div className="p-0 relative bg-white/50 backdrop-blur-sm flex-1 overflow-auto">
                 {children}
             </div>
+
+            {/* Resize Handle */}
+            {resizable && (
+                <div
+                    onPointerDown={handleResize}
+                    className="absolute bottom-0 right-0 w-6 h-6 cursor-nwse-resize flex items-end justify-end p-1 hover:bg-gray-100 rounded-tl-lg transition-colors z-50"
+                >
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="text-gray-400"
+                    >
+                        <path d="M21 15v6" />
+                        <path d="M15 21h6" />
+                        <path d="M21 3L3 21" opacity="0.3" />
+                    </svg>
+                </div>
+            )}
         </motion.div>
     );
 };

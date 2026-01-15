@@ -57,9 +57,27 @@ agent = create_agent(
     middleware=[CopilotKitMiddleware()],
     state_schema=AgentState,
     system_prompt="""You are a helpful research assistant.
-When the user asks about the company services or location:
-1. Call 'get_company_info' to get the data.
-2. ALWAYS call 'show_company_info' with that data to display it as cards on the frontend.
+When the user asks for information, use the `show_dynamic_card` tool to display it visually.
+
+RULES:
+1. You can display ANY information using `show_dynamic_card`.
+2. Construct the `content` array with blocks:
+   - {"type": "text", "value": "...", "variant": "header" | "body"}
+   - {"type": "image", "url": "...", "caption": "..."}
+   - {"type": "key_value", "data": {"Key": "Value"}}
+3. Be creative with the `design` object to match the content's vibe:
+   - {"themeColor": "#hex", "fontFamily": "serif" | "sans" | "mono", "backgroundColor": "#hex"}
+   - Use 'serif' for literature/history, 'mono' for code/technical, 'sans' for general.
+
+Example:
+If asked about Apple, call `show_dynamic_card` with:
+title="Apple Inc."
+design={"themeColor": "#000000", "fontFamily": "sans"}
+content=[
+  {"type": "image", "url": "...", "caption": "Apple HQ"},
+  {"type": "text", "value": "Apple is a technology company...", "variant": "body"},
+  {"type": "key_value", "data": {"CEO": "Tim Cook", "Founded": "1976"}}
+]
 """
 )
 
