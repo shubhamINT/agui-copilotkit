@@ -130,6 +130,26 @@ export default function CopilotKitPage() {
     }
   });
 
+  // Delete Card Tool
+  useFrontendTool({
+    name: "delete_card",
+    description: "Deletes a card/widget from the screen. Use this when the user asks to remove, close, or delete a card.",
+    parameters: [
+      { name: "id", type: "string", required: false, description: "The ID of the card to delete" },
+      { name: "title", type: "string", required: false, description: "The title of the card to delete (if ID is unknown)" }
+    ],
+    handler({ id, title }) {
+      if (id) {
+        closeWidget(id);
+      } else if (title) {
+        const target = widgets.find(w => w.title.toLowerCase().includes(title.toLowerCase()));
+        if (target) {
+          closeWidget(target.id);
+        }
+      }
+    }
+  });
+
 
   // Proverbs View Switcher
   useFrontendTool({
