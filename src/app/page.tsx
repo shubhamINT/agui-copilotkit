@@ -7,7 +7,7 @@ import { CompanyCard } from "@/components/company-info";
 import { UniversalCard, UniversalCardData } from "@/components/universal-card";
 import { WidgetWrapper } from "@/components/widget-wrapper";
 import { useCoAgent, useFrontendTool, useHumanInTheLoop } from "@copilotkit/react-core";
-import { CopilotPopup } from "@copilotkit/react-ui";
+import { CustomChatInterface } from "@/components/custom-chat";
 import { useState, useRef } from "react";
 
 interface Widget {
@@ -161,6 +161,7 @@ export default function CopilotKitPage() {
     []
   );
 
+
   return (
     <main
       className="flex flex-col h-screen relative overflow-hidden transition-colors duration-500"
@@ -170,11 +171,11 @@ export default function CopilotKitPage() {
       } as any}
     >
       {/* 
-        ----------------------------------------------------
-        MAIN CANVAS AREA (Results Display)
-        This occupies the entire screen behind the popup
-        ----------------------------------------------------
-      */}
+      ----------------------------------------------------
+      MAIN CANVAS AREA (Results Display)
+      This occupies the entire screen behind the popup
+      ----------------------------------------------------
+    */}
       <div ref={constraintsRef} className="flex-1 flex items-center justify-center p-8 overflow-hidden relative">
 
         {/* Empty State */}
@@ -221,19 +222,11 @@ export default function CopilotKitPage() {
       </div>
 
       {/* 
-        ----------------------------------------------------
-        COPILOT POPUP (Bottom Right Widget)
-        ----------------------------------------------------
-      */}
-      <CopilotPopup
-        instructions="You are a helpful assistant. use 'show_dynamic_card' to display information visually."
-        labels={{
-          title: "Assistant",
-          initial: "Hi! I can update the screen for you. Ask me anything.",
-        }}
-        defaultOpen={false} // Start closed (bubble mode)
-        clickOutsideToClose={false} // Keep it open while interacting
-      />
+      ----------------------------------------------------
+      COPILOT POPUP (Bottom Right Widget)
+      ----------------------------------------------------
+    */}
+      <CustomChatInterface />
 
     </main>
   );
