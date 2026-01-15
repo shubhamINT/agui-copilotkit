@@ -4,14 +4,15 @@ import { ProverbsCard } from "@/components/proverbs";
 import { WeatherCard } from "@/components/weather";
 import { MoonCard } from "@/components/moon";
 import { CompanyCard } from "@/components/company-info";
+import { UniversalCard, UniversalCardData } from "@/components/universal-card";
 import { WidgetWrapper } from "@/components/widget-wrapper";
 import { useCoAgent, useFrontendTool, useHumanInTheLoop } from "@copilotkit/react-core";
-import { CopilotPopup } from "@copilotkit/react-ui";
+import { CustomChatInterface } from "@/components/custom-chat";
 import { useState, useRef } from "react";
 
 interface Widget {
   id: string;
-  type: "proverbs" | "weather" | "moon" | "company";
+  type: "proverbs" | "weather" | "moon" | "company" | "dynamic_card";
   title: string;
   data: any;
   zIndex: number;
@@ -36,20 +37,38 @@ export default function CopilotKitPage() {
     setWidgets(prev => prev.filter(w => w.id !== id));
   };
 
-  const addWidget = (type: Widget["type"], title: string, data: any) => {
-    const id = Math.random().toString(36).substring(7);
-    const offset = widgets.length * 30; // Stagger new windows
+  const addWidget = (type: Widget["type"], title: string, data: any, id?: string) => {
+    // Check if widget already exists by ID (if provided) or Title (as fallback for dynamic cards)
+    const existingIndex = widgets.findIndex(w => (id && w.id === id) || (type === "dynamic_card" && w.title === title));
 
-    // Check if widget of this type already exists (optional, but good for singletons like weather)
-    // For now we allow multiple, but let's just append.
+    if (existingIndex !== -1) {
+      // UPSERT: Update existing widget
+      setWidgets(prev => {
+        const newWidgets = [...prev];
+        const existing = newWidgets[existingIndex];
+        newWidgets[existingIndex] = {
+          ...existing,
+          title, // Update title if it changed
+          data: { ...existing.data, ...data }, // Merge data
+          zIndex: highestZ + 1 // Bring to front on update
+        };
+        return newWidgets;
+      });
+      setHighestZ(prev => prev + 1);
+      return;
+    }
+
+    // CREATE NEW
+    const newId = id || Math.random().toString(36).substring(7);
+    const offset = widgets.length * 30;
 
     const newWidget: Widget = {
-      id,
+      id: newId,
       type,
       title,
       data,
       zIndex: highestZ + 1,
-      position: { x: offset, y: offset } // Initial staggered position
+      position: { x: offset, y: offset }
     };
 
     setHighestZ(prev => prev + 1);
@@ -90,14 +109,47 @@ export default function CopilotKitPage() {
     name: "show_company_info",
     parameters: [{ name: "info", type: "object", required: true }],
     handler({ info }) {
-      // Add a widget for EACH card in the info array (if multiple)
-      // Or one widget containing all cards? Let's do one widget per card for maximum drag freedom as requested.
-
       (info as any[]).forEach((item) => {
         addWidget("company", item.title, item);
       });
     },
   });
+
+  // Universal / Dynamic Card Tool
+  useFrontendTool({
+    name: "show_dynamic_card",
+    parameters: [
+      { name: "id", type: "string", required: false, description: "Stable ID to update existing card" },
+      { name: "title", type: "string", required: true },
+      { name: "content", type: "object[]", required: true },
+      { name: "design", type: "object", required: false }
+    ],
+    handler({ id, title, content, design }) {
+      // Pass ID if available so addWidget can target it
+      addWidget("dynamic_card", title, { title, content, design }, id);
+    }
+  });
+
+  // Delete Card Tool
+  useFrontendTool({
+    name: "delete_card",
+    description: "Deletes a card/widget from the screen. Use this when the user asks to remove, close, or delete a card.",
+    parameters: [
+      { name: "id", type: "string", required: false, description: "The ID of the card to delete" },
+      { name: "title", type: "string", required: false, description: "The title of the card to delete (if ID is unknown)" }
+    ],
+    handler({ id, title }) {
+      if (id) {
+        closeWidget(id);
+      } else if (title) {
+        const target = widgets.find(w => w.title.toLowerCase().includes(title.toLowerCase()));
+        if (target) {
+          closeWidget(target.id);
+        }
+      }
+    }
+  });
+
 
   // Proverbs View Switcher
   useFrontendTool({
@@ -129,6 +181,7 @@ export default function CopilotKitPage() {
     []
   );
 
+
   return (
     <main
       className="flex flex-col h-screen relative overflow-hidden transition-colors duration-500"
@@ -138,14 +191,13 @@ export default function CopilotKitPage() {
       } as any}
     >
       {/* 
-        ----------------------------------------------------
-        MAIN CANVAS AREA (Results Display)
-        This occupies the entire screen behind the popup
-        ----------------------------------------------------
-      */}
+      ----------------------------------------------------
+      MAIN CANVAS AREA (Results Display)
+      This occupies the entire screen behind the popup
+      ----------------------------------------------------
+    */}
       <div ref={constraintsRef} className="flex-1 flex items-center justify-center p-8 overflow-hidden relative">
 
-        {/* Empty State */}
         {/* Empty State */}
         {widgets.length === 0 && (
           <div className="text-center max-w-lg pointer-events-none select-none opacity-50">
@@ -159,41 +211,42 @@ export default function CopilotKitPage() {
         )}
 
         {/* Dynamic Widgets */}
-        {widgets.map((widget) => (
-          <WidgetWrapper
-            key={widget.id}
-            id={widget.id}
-            title={widget.title}
-            zIndex={widget.zIndex}
-            initialPosition={widget.position}
-            onClose={closeWidget}
-            onFocus={bringToFront}
-            dragConstraintsRef={constraintsRef}
-            themeColor={themeColor}
-          >
-            {widget.type === "proverbs" && <ProverbsCard state={state} setState={setState} />}
-            {widget.type === "weather" && <WeatherCard location={widget.data} themeColor={themeColor} />}
-            {widget.type === "moon" && <MoonCard themeColor={themeColor} status={moonStatus} respond={moonRespond} />}
-            {widget.type === "company" && <CompanyCard item={widget.data} themeColor={themeColor} />}
-          </WidgetWrapper>
-        ))}
+        {widgets.map((widget) => {
+          const isUniversal = widget.type === "dynamic_card";
+          // FIX: Ensure we fallback to null if design is missing, so we don't crash
+          // And precedence: widget-specific color -> method-specific color -> default blue
+          const designColor = isUniversal ? (widget.data as UniversalCardData).design?.themeColor : null;
+
+          return (
+            <WidgetWrapper
+              key={widget.id}
+              id={widget.id}
+              title={widget.title}
+              zIndex={widget.zIndex}
+              initialPosition={widget.position}
+              onClose={closeWidget}
+              onFocus={bringToFront}
+              dragConstraintsRef={constraintsRef}
+              themeColor={designColor || themeColor}
+              resizable={isUniversal} // Enable resizing for Universal Cards
+            >
+              {widget.type === "proverbs" && <ProverbsCard state={state} setState={setState} />}
+              {widget.type === "weather" && <WeatherCard location={widget.data} themeColor={themeColor} />}
+              {widget.type === "moon" && <MoonCard themeColor={themeColor} status={moonStatus} respond={moonRespond} />}
+              {widget.type === "company" && <CompanyCard item={widget.data} themeColor={themeColor} />}
+              {widget.type === "dynamic_card" && <UniversalCard data={widget.data} />}
+            </WidgetWrapper>
+          );
+        })}
 
       </div>
 
       {/* 
-        ----------------------------------------------------
-        COPILOT POPUP (Bottom Right Widget)
-        ----------------------------------------------------
-      */}
-      <CopilotPopup
-        instructions="You are a helpful assistant. Call 'show_proverbs_view' for proverbs, 'get_weather' for weather, and 'show_company_info' to show company data cards."
-        labels={{
-          title: "Assistant",
-          initial: "Hi! I can update the screen for you. Try asking for the weather.",
-        }}
-        defaultOpen={false} // Start closed (bubble mode)
-        clickOutsideToClose={false} // Keep it open while interacting
-      />
+      ----------------------------------------------------
+      COPILOT POPUP (Bottom Right Widget)
+      ----------------------------------------------------
+    */}
+      <CustomChatInterface />
 
     </main>
   );

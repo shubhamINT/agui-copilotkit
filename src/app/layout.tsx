@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { CopilotKit } from "@copilotkit/react-core";
 // Import Styles
 import "./globals.css";
-import "@copilotkit/react-ui/styles.css"; 
+import "@copilotkit/react-ui/styles.css";
 
 export const metadata: Metadata = {
   title: "CoAgent Powered App",
@@ -17,15 +17,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">
+      <body className="antialiased" suppressHydrationWarning>
         {/* 
           We wrap the entire app in CopilotKit.
           runtimeUrl: Points to your backend (route.ts)
           agent: The name of the agent defined in your LangGraph/Backend
         */}
-        <CopilotKit 
-          runtimeUrl="/api/copilotkit" 
-          agent="sample_agent" 
+        <CopilotKit
+          runtimeUrl="/api/copilotkit"
+          agent="sample_agent"
           showDevConsole={false}
         >
           {children}
