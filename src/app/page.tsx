@@ -6,6 +6,7 @@ import { MoonCard } from "@/components/moon";
 import { CompanyCard } from "@/components/company-info";
 import { UniversalCard, UniversalCardData } from "@/components/universal-card";
 import { WidgetWrapper } from "@/components/widget-wrapper";
+import { WIDGET_REGISTRY } from "@/config/widget-registry";
 import { useCoAgent, useFrontendTool, useHumanInTheLoop } from "@copilotkit/react-core";
 import { CustomChatInterface } from "@/components/custom-chat";
 import { useState, useRef } from "react";
@@ -228,7 +229,8 @@ export default function CopilotKitPage() {
               onFocus={bringToFront}
               dragConstraintsRef={constraintsRef}
               themeColor={designColor || themeColor}
-              resizable={isUniversal} // Enable resizing for Universal Cards
+              resizable={isUniversal || WIDGET_REGISTRY[widget.type]?.resizable}
+
             >
               {widget.type === "proverbs" && <ProverbsCard state={state} setState={setState} />}
               {widget.type === "weather" && <WeatherCard location={widget.data} themeColor={themeColor} />}

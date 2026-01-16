@@ -9,11 +9,11 @@ interface CompanyInfo {
     description: string;
 }
 
+import { StandardCard } from "./standard-card";
+
 export const CompanyCard = ({ item, themeColor = "#2563EB" }: { item: CompanyInfo, themeColor?: string }) => {
     return (
-        <div
-            className="bg-white rounded-none p-6 w-80 relative overflow-hidden group"
-        >
+        <StandardCard themeColor={themeColor} className="bg-white group" noPadding={false}>
             {/* Decorative Background Blob */}
             <div
                 className="absolute -right-8 -top-8 w-32 h-32 rounded-full opacity-10 transition-transform duration-700 group-hover:scale-150"
@@ -41,6 +41,6 @@ export const CompanyCard = ({ item, themeColor = "#2563EB" }: { item: CompanyInf
                 className="absolute bottom-0 left-0 w-full h-1 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"
                 style={{ backgroundColor: themeColor }}
             />
-        </div>
+        </StandardCard>
     );
 };
