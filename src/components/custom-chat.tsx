@@ -234,6 +234,11 @@ export default function App() {
     const [isSearching, setIsSearching] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [hasChatStarted, setHasChatStarted] = useState(false);
+    const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 });
+    const [recentCards, setRecentCards] = useState<string[]>([]);  // Track recently added cards
+
+    const canvasRef = useRef<HTMLDivElement>(null);
+    const lastSyncedDimensionsRef = useRef({ width: 0, height: 0 });
 
     const bringToFront = (id: string) => {
         setHighestZ(prev => prev + 1);
@@ -248,13 +253,40 @@ export default function App() {
         const newId = id || Math.random().toString(36).substring(7);
         let position = { x: 0, y: 0 };
 
-        if (!shouldClear) {
-            const index = widgets.length;
-            position = {
-                x: (index * 50) % 400,
-                y: index * 50
+        // Clear all cards if requested
+        if (shouldClear) {
+            const newWidget: Widget = {
+                id: newId,
+                type,
+                title,
+                data,
+                zIndex: highestZ + 1,
+                position,
+                initialSize
             };
+            setHighestZ(prev => prev + 1);
+            setWidgets([newWidget]);
+            setRecentCards([newId]);
+            return;
         }
+
+        // Calculate grid position based on recent cards
+        const cardWidth = initialSize?.width || 320;
+        const cardHeight = initialSize?.height === "auto" ? 400 : (initialSize?.height || 400);
+        const padding = 20;
+        const availableWidth = canvasDimensions.width || 1200;
+
+        // Calculate how many cards fit per row
+        const cardsPerRow = Math.floor(availableWidth / (cardWidth + padding)) || 1;
+        const currentCardCount = widgets.length;
+
+        const col = currentCardCount % cardsPerRow;
+        const row = Math.floor(currentCardCount / cardsPerRow);
+
+        position = {
+            x: col * (cardWidth + padding) + padding,
+            y: row * (cardHeight + padding) + padding
+        };
 
         const newWidget: Widget = {
             id: newId,
@@ -263,15 +295,10 @@ export default function App() {
             data,
             zIndex: highestZ + 1,
             position,
-            initialSize
+            initialSize: initialSize || { width: cardWidth, height: "auto" }
         };
 
-        if (shouldClear) {
-            setHighestZ(prev => prev + 1);
-            setWidgets([newWidget]);
-            return;
-        }
-
+        // Check if updating existing card
         const existingIndex = widgets.findIndex(w => (id && w.id === id) || (type === "dynamic_card" && w.title === title));
 
         if (existingIndex !== -1) {
@@ -291,15 +318,68 @@ export default function App() {
             return;
         }
 
+        // Add new card
         setHighestZ(prev => prev + 1);
         setWidgets(prev => [...prev, newWidget]);
+
+        // Track recent cards for potential batch layout
+        setRecentCards(prev => {
+            const updated = [...prev, newId];
+            // Keep only last 20 cards in tracking
+            return updated.slice(-20);
+        });
     };
+
+    // --- CANVAS DIMENSION TRACKING ---
+    useEffect(() => {
+        if (!canvasRef.current) return;
+
+        const updateDimensions = () => {
+            if (canvasRef.current) {
+                const rect = canvasRef.current.getBoundingClientRect();
+                const newWidth = Math.round(rect.width);
+                const newHeight = Math.round(rect.height);
+
+                setCanvasDimensions(prev => {
+                    if (prev.width === newWidth && prev.height === newHeight) {
+                        return prev;
+                    }
+                    return { width: newWidth, height: newHeight };
+                });
+            }
+        };
+
+        updateDimensions();
+        const resizeObserver = new ResizeObserver(updateDimensions);
+        resizeObserver.observe(canvasRef.current);
+
+        return () => resizeObserver.disconnect();
+    }, [hasChatStarted]);
 
     // --- AGENT CONNECTION ---
     const { state, setState } = useCoAgent({
         name: "sample_agent",
-        initialState: {}
+        initialState: {
+            canvas_width: canvasDimensions.width,
+            canvas_height: canvasDimensions.height
+        }
     });
+
+    // Update agent state when canvas dimensions change
+    // IMPORTANT: Don't include setState in dependencies to avoid infinite loop
+    useEffect(() => {
+        // Only update if dimensions actually changed from last sync
+        if (
+            canvasDimensions.width !== lastSyncedDimensionsRef.current.width ||
+            canvasDimensions.height !== lastSyncedDimensionsRef.current.height
+        ) {
+            lastSyncedDimensionsRef.current = canvasDimensions;
+            setState({
+                canvas_width: canvasDimensions.width,
+                canvas_height: canvasDimensions.height
+            });
+        }
+    }, [canvasDimensions]); // Only depend on canvasDimensions, NOT setState
 
     const { appendMessage, isLoading } = useCopilotChat({
         id: "main-chat"
@@ -422,18 +502,20 @@ export default function App() {
             </AnimatePresence>
 
             {/* RIGHT SIDE: Main Content & Dynamic UI */}
-            <MainAppContent
-                themeColor={themeColor}
-                widgets={widgets}
-                closeWidget={closeWidget}
-                bringToFront={bringToFront}
-                handleSearch={handleSearch}
-                searchQuery={searchQuery}
-                setSearchQuery={setSearchQuery}
-                isLoading={isLoading}
-                isSearching={isSearching}
-                hasChatStarted={hasChatStarted}
-            />
+            <div ref={canvasRef} className="flex-1 h-full">
+                <MainAppContent
+                    themeColor={themeColor}
+                    widgets={widgets}
+                    closeWidget={closeWidget}
+                    bringToFront={bringToFront}
+                    handleSearch={handleSearch}
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                    isLoading={isLoading}
+                    isSearching={isSearching}
+                    hasChatStarted={hasChatStarted}
+                />
+            </div>
         </div>
     );
 }
