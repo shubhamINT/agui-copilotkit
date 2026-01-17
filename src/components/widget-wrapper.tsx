@@ -12,6 +12,7 @@ interface WidgetWrapperProps {
     initialPosition?: { x: number; y: number };
     initialSize?: { width: number; height: number | "auto" };
     themeColor?: string;
+    backgroundColor?: string;
     children: React.ReactNode;
     dragConstraintsRef?: React.RefObject<HTMLDivElement | null>;
     resizable?: boolean;
@@ -26,6 +27,7 @@ export const WidgetWrapper = ({
     initialPosition = { x: 0, y: 0 },
     initialSize,
     themeColor = "#2563EB",
+    backgroundColor,
     children,
     dragConstraintsRef,
     resizable = true,
@@ -128,7 +130,12 @@ export const WidgetWrapper = ({
             </div>
 
             {/* Widget Content */}
-            <div className="p-0 relative bg-white/50 backdrop-blur-sm flex-1 overflow-auto">
+            <div
+                className="p-0 relative backdrop-blur-sm flex-1 overflow-auto"
+                style={{
+                    backgroundColor: backgroundColor || "rgba(255, 255, 255, 0.5)"
+                }}
+            >
                 {children}
             </div>
 

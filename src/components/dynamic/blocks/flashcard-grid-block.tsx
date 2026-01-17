@@ -2,6 +2,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
+import ReactMarkdown from "react-markdown";
 import { DynamicBlockProps } from "../registry";
 
 interface FlashcardItem {
@@ -15,13 +16,23 @@ interface FlashcardItem {
 export const FlashcardGridBlock: React.FC<DynamicBlockProps> = ({ data, design }) => {
     const items: FlashcardItem[] = data?.items || [];
     const themeColor = design?.themeColor || "#2563EB";
+    const backgroundColor = design?.backgroundColor || "#ffffff";
+    const fontColor = design?.fontColor || "#1e293b";
+
+    // Font size mapping
+    const fontSizeMap = {
+        small: { title: "text-sm", description: "text-xs" },
+        medium: { title: "text-base", description: "text-sm" },
+        large: { title: "text-lg", description: "text-base" }
+    };
+    const fontSize = fontSizeMap[design?.fontSize as keyof typeof fontSizeMap] || fontSizeMap.medium;
 
     const container = {
         hidden: { opacity: 0 },
         show: {
             opacity: 1,
             transition: {
-                staggerChildren: 0.1,
+                staggerChildren: 0.15,  // Increased stagger for better streaming effect
             },
         },
     };
@@ -40,12 +51,24 @@ export const FlashcardGridBlock: React.FC<DynamicBlockProps> = ({ data, design }
         },
     };
 
+    // Calculate optimal grid columns based on item count
+    const getGridCols = (count: number) => {
+        if (count <= 1) return "grid-cols-1";
+        if (count === 2) return "grid-cols-1 md:grid-cols-2";
+        if (count <= 4) return "grid-cols-1 md:grid-cols-2 lg:grid-cols-2";
+        if (count <= 8) return "grid-cols-1 md:grid-cols-2 lg:grid-cols-4";
+        if (count <= 12) return "grid-cols-1 md:grid-cols-3 lg:grid-cols-4";
+        return "grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6";
+    };
+
+    const gridClass = getGridCols(items.length);
+
     return (
         <motion.div
             variants={container}
             initial="hidden"
             animate="show"
-            className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2"
+            className={`grid ${gridClass} gap-4 mt-2`}
         >
             {items.map((item, idx) => (
                 <motion.div
@@ -55,20 +78,52 @@ export const FlashcardGridBlock: React.FC<DynamicBlockProps> = ({ data, design }
                         scale: 1.03,
                         boxShadow: `0 10px 25px -5px ${themeColor}20`,
                     }}
-                    className="group relative flex flex-col p-5 bg-white rounded-2xl border border-slate-100 shadow-sm transition-all hover:border-blue-100"
+                    className="group relative flex flex-col p-5 rounded-2xl border shadow-sm transition-all hover:border-opacity-50"
+                    style={{
+                        backgroundColor: backgroundColor,
+                        borderColor: themeColor + "30",
+                        color: fontColor
+                    }}
                 >
                     <div className="flex items-center gap-3 mb-3">
                         {item.icon && (
                             <span className="text-xl">{item.icon}</span>
                         )}
-                        <h4 className="font-bold text-slate-800 group-hover:text-blue-600 transition-colors">
+                        <h4
+                            className={`font-bold group-hover:opacity-80 transition-colors ${fontSize.title}`}
+                            style={{ color: themeColor }}
+                        >
                             {item.title}
                         </h4>
                     </div>
 
-                    <p className="text-sm text-slate-600 leading-relaxed flex-1">
-                        {item.description}
-                    </p>
+                    {/* Use ReactMarkdown for description */}
+                    <div
+                        className={`leading-relaxed flex-1 prose prose-sm max-w-none ${fontSize.description}`}
+                        style={{ color: fontColor }}
+                    >
+                        <ReactMarkdown
+                            components={{
+                                a: ({ node, ...props }) => (
+                                    <a
+                                        {...props}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="font-semibold hover:underline"
+                                        style={{ color: themeColor }}
+                                    />
+                                ),
+                                strong: ({ node, ...props }) => (
+                                    <strong {...props} style={{ color: themeColor }} />
+                                ),
+                                p: ({ node, ...props }) => (
+                                    <p {...props} className="mb-2 last:mb-0" />
+                                )
+                            }}
+                        >
+                            {item.description}
+                        </ReactMarkdown>
+                    </div>
 
                     {item.url && (
                         <a

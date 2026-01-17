@@ -10,6 +10,8 @@ export interface CardDesign {
     themeColor?: string;
     fontFamily?: FontType;
     backgroundColor?: string;
+    fontSize?: "small" | "medium" | "large";
+    fontColor?: string;
 }
 
 export interface ContentBlock {

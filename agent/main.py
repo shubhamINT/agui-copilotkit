@@ -13,7 +13,7 @@ from typing import List, Literal, Dict, Any, Optional
 from langchain.tools import tool
 from langchain.agents import create_agent
 from copilotkit import CopilotKitMiddleware, CopilotKitState
-from system_prompt import AGENT_PROMPT
+from system_prompt import AGENT_PROMPT2
 import os
 from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
@@ -62,7 +62,14 @@ class RenderUISchema(BaseModel):
     title: str = Field(..., description="The card title")
     content: List[Dict[str, Any]] = Field(..., description="A list of content blocks (Markdown, Image, Form, etc.)")
     id: Optional[str] = Field(None, description="Optional stable ID to update existing card")
-    design: Optional[dict] = Field(None, description="Optional design config: {themeColor: str, fontFamily: 'serif'|'mono'|'sans', backgroundColor: str}")
+    design: Optional[dict] = Field(None, description="""
+        Optional design config with these properties:
+        - themeColor: str (hex color for accents)
+        - fontFamily: 'serif' | 'mono' | 'sans'
+        - backgroundColor: str (hex color for card background)
+        - fontSize: 'small' | 'medium' | 'large' (text size)
+        - fontColor: str (hex color for text)
+    """)
     layout: Optional[str] = Field(None, description="'vertical' or 'grid'")
     clearHistory: Optional[bool] = Field(None, description="If True, removes all previous cards before rendering this one. Default False.")
     dimensions: Optional[dict] = Field(None, description="Optional size suggestions: {width: number, height: number | 'auto'}")
@@ -124,7 +131,7 @@ class AgentState(CopilotKitState):
 # ============================================================
 
 agent = create_agent(
-    model="gpt-4o-mini",
+    model="gpt-4.1",
     tools=[
         # Data Tools (Pure Functions)
         search_knowledge_base,
@@ -139,7 +146,7 @@ agent = create_agent(
     ],
     middleware=[CopilotKitMiddleware()],
     state_schema=AgentState,
-    system_prompt=AGENT_PROMPT
+    system_prompt=AGENT_PROMPT2
 )
 
 graph = agent

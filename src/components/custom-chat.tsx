@@ -216,6 +216,7 @@ function MainAppContent({
                                 onFocus={bringToFront}
                                 dragConstraintsRef={constraintsRef}
                                 themeColor={designColor || themeColor}
+                                backgroundColor={(widget.data as UniversalCardData).design?.backgroundColor}
                                 resizable={WIDGET_REGISTRY[widget.type as keyof typeof WIDGET_REGISTRY]?.resizable}
                             >
                                 <UniversalCard data={widget.data} />
@@ -249,6 +250,8 @@ export default function App() {
     const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 });
     const [recentCards, setRecentCards] = useState<string[]>([]);  // Track recently added cards
     const [isUiLoading, setIsUiLoading] = useState(false);
+    const [pendingWidgetCount, setPendingWidgetCount] = useState(0);
+    const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const canvasRef = useRef<HTMLDivElement>(null);
     const lastSyncedDimensionsRef = useRef({ width: 0, height: 0 });
@@ -291,25 +294,6 @@ export default function App() {
 
         // Calculate how many cards fit per row
         const cardsPerRow = Math.floor(availableWidth / (cardWidth + padding)) || 1;
-        const currentCardCount = widgets.length;
-
-        const col = currentCardCount % cardsPerRow;
-        const row = Math.floor(currentCardCount / cardsPerRow);
-
-        position = {
-            x: col * (cardWidth + padding) + padding,
-            y: row * (cardHeight + padding) + padding
-        };
-
-        const newWidget: Widget = {
-            id: newId,
-            type,
-            title,
-            data,
-            zIndex: highestZ + 1,
-            position,
-            initialSize: initialSize || { width: cardWidth, height: "auto" }
-        };
 
         // Check if updating existing card
         const existingIndex = widgets.findIndex(w => (id && w.id === id) || (type === "dynamic_card" && w.title === title));
@@ -330,6 +314,26 @@ export default function App() {
             setHighestZ(prev => prev + 1);
             return;
         }
+
+        // Calculate position for NEW card
+        const currentCardCount = widgets.length;
+        const col = currentCardCount % cardsPerRow;
+        const row = Math.floor(currentCardCount / cardsPerRow);
+
+        position = {
+            x: col * (cardWidth + padding) + padding,
+            y: row * (cardHeight + padding) + padding
+        };
+
+        const newWidget: Widget = {
+            id: newId,
+            type,
+            title,
+            data,
+            zIndex: highestZ + 1,
+            position,
+            initialSize: initialSize || { width: cardWidth, height: "auto" }
+        };
 
         // Add new card
         setHighestZ(prev => prev + 1);
@@ -421,8 +425,21 @@ export default function App() {
         ],
         handler({ id, title, content, design, clearHistory, dimensions }) {
             addWidget("dynamic_card", title, { title, content, design }, id, clearHistory, dimensions as any);
-            // Once render_ui completes adding the widget, we can stop the UI loading state
-            setIsUiLoading(false);
+
+            // Increment pending count to track widget rendering
+            setPendingWidgetCount(prev => prev + 1);
+
+            // Clear any existing timeout
+            if (loadingTimeoutRef.current) {
+                clearTimeout(loadingTimeoutRef.current);
+            }
+
+            // Set a timeout to dismiss loading after animations complete
+            // This gives time for framer-motion animations to finish
+            loadingTimeoutRef.current = setTimeout(() => {
+                setIsUiLoading(false);
+                setPendingWidgetCount(0);
+            }, 1500); // 1.5 seconds should cover staggered animations
         }
     });
 
@@ -474,9 +491,13 @@ export default function App() {
                 content: searchQuery
             })
         );
-        // After appendMessage, if no UI rendering was triggered, we should still clear isUiLoading
-        // But we wait a bit to allow for tool calls to potentially trigger
-        setTimeout(() => setIsUiLoading(false), 2000);
+        // After appendMessage, if no UI rendering was triggered within 3 seconds, clear loading
+        // This acts as a fallback in case the agent doesn't call render_ui
+        setTimeout(() => {
+            if (pendingWidgetCount === 0) {
+                setIsUiLoading(false);
+            }
+        }, 3000);
     };
 
     return (
