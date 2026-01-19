@@ -10,9 +10,6 @@ dist
 build
 .venv
 venv
-ENV
-env
-.env.local
 .pytest_cache
 .coverage
 htmlcov
