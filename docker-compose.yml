@@ -8,7 +8,7 @@ services:
     ports:
       - "3008:8123"
     env_file:
-      - .env
+      - ./agent/.env
     volumes:
       # Persist ChromaDB data
       - ./agent/chroma_db:/app/chroma_db
@@ -26,7 +26,7 @@ services:
     ports:
       - "3009:3000"
     env_file:
-      - .env
+      - ./.env
     depends_on:
       - backend
     restart: unless-stopped
